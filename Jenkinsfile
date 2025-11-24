@@ -3,37 +3,45 @@ pipeline {
 
     environment {
         DOCKER_CREDENTIALS_ID = 'roseaw-dockerhub'
-        DOCKER_IMAGE          = 'cithit/reisinj3'              // your DockerHub image
-        IMAGE_TAG             = "build-${BUILD_NUMBER}"
-        GITHUB_URL            = 'https://github.com/Reisinj3/Lab5.1.git'
-        KUBECONFIG            = credentials('reisinj3-225')    // your kube creds
+        DOCKER_IMAGE         = 'cithit/reisinj3'      // your Docker Hub repo
+        IMAGE_TAG            = "build-${BUILD_NUMBER}"
+        GITHUB_URL           = 'https://github.com/Reisinj3/Lab5.1.git'
+        KUBECONFIG           = credentials('reisinj3-225')
     }
 
     stages {
         stage('Code Checkout') {
             steps {
                 cleanWs()
-                checkout([$class: 'GitSCM',
-                          branches: [[name: '*/main']],
-                          userRemoteConfigs: [[url: "${GITHUB_URL}"]]])
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[url: "${GITHUB_URL}"]]
+                ])
             }
         }
 
         stage('Static Code Testing (Python)') {
             steps {
-                sh 'pip install flake8'
-                // Run flake8 on your key Python files
-                sh 'flake8 main.py data-gen.py data-clear.py'
+                script {
+                    // Run flake8 inside a Python Docker container so we don't need pip on Jenkins
+                    docker.image('python:3.9-slim').inside {
+                        sh '''
+                            pip install flake8
+                            flake8 --ignore=E501,W503 .
+                        '''
+                    }
+                }
             }
         }
-        
+
         stage('Lint HTML') {
             steps {
                 sh 'npm install htmlhint --save-dev'
                 sh 'npx htmlhint *.html'
             }
         }
-        
+
         stage('Build & Push Docker Image') {
             steps {
                 script {
@@ -48,18 +56,16 @@ pipeline {
         stage('Deploy to Dev Environment') {
             steps {
                 script {
-                    // read kubeconfig (even if not explicitly used, keeps pattern from lab)
                     def kubeConfig = readFile(KUBECONFIG)
-                    // clear old deployments
+                    // (They usually ignore kubeConfig var; it's just required by credentials() binding)
                     sh "kubectl delete --all deployments --namespace=default || true"
-                    // update dev deployment yaml to use new image tag
                     sh "sed -i 's|${DOCKER_IMAGE}:latest|${DOCKER_IMAGE}:${IMAGE_TAG}|' deployment-dev.yaml"
                     sh "kubectl apply -f deployment-dev.yaml"
                 }
             }
         }
-        
-        stage('Run Security Checks') {
+
+        stage("Run Security Checks") {
             steps {
                 sh 'docker pull public.ecr.aws/portswigger/dastardly:latest'
                 sh '''
@@ -71,16 +77,15 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Reset DB After Security Checks') {
             steps {
                 script {
-                    // grab a running app pod
                     def appPod = sh(
                         script: "kubectl get pods -l app=flask -o jsonpath='{.items[0].metadata.name}'",
                         returnStdout: true
                     ).trim()
-        
+
                     sh """
                         kubectl exec ${appPod} -- python3 - <<'PY'
                         import sqlite3
@@ -93,17 +98,15 @@ pipeline {
                     """
                 }
             }
-        } 
-   
+        }
+
         stage('Generate Test Data') {
             steps {
                 script {
-                    // Ensure the label accurately targets the correct pods.
                     def appPod = sh(
                         script: "kubectl get pods -l app=flask -o jsonpath='{.items[0].metadata.name}'",
                         returnStdout: true
                     ).trim()
-
                     sh "sleep 15"
                     sh "kubectl get pods"
                     sh "kubectl exec ${appPod} -- python3 data-gen.py"
@@ -111,7 +114,7 @@ pipeline {
             }
         }
 
-        stage('Run Acceptance Tests') {
+        stage("Run Acceptance Tests") {
             steps {
                 script {
                     sh 'docker stop qa-tests || true'
@@ -121,7 +124,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Remove Test Data') {
             steps {
                 script {
@@ -137,9 +140,7 @@ pipeline {
         stage('Deploy to Prod Environment') {
             steps {
                 script {
-                    // update prod deployment yaml to use new image tag
                     sh "sed -i 's|${DOCKER_IMAGE}:latest|${DOCKER_IMAGE}:${IMAGE_TAG}|' deployment-prod.yaml"
-                    sh "cd .."
                     sh "kubectl apply -f deployment-prod.yaml"
                 }
             }
@@ -156,13 +157,13 @@ pipeline {
 
     post {
         success {
-            slackSend color: "good", message: "Build Completed: ${env.JOB_NAME} ${env.BUILD_NUMBER}"
+            slackSend color: "good",    message: "Build Completed: ${env.JOB_NAME} ${env.BUILD_NUMBER}"
         }
         unstable {
             slackSend color: "warning", message: "Build Completed (UNSTABLE): ${env.JOB_NAME} ${env.BUILD_NUMBER}"
         }
         failure {
-            slackSend color: "danger", message: "Build FAILED: ${env.JOB_NAME} ${env.BUILD_NUMBER}"
+            slackSend color: "danger",  message: "Build FAILED: ${env.JOB_NAME} ${env.BUILD_NUMBER}"
         }
     }
 }
