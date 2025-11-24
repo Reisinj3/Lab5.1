@@ -9,23 +9,30 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-secret")
 DATABASE = '/nfs/demo.db'
 PER_PAGE_DEFAULT = 10
 
+
 def get_db():
+    """Open a connection to the SQLite database."""
     db = sqlite3.connect(DATABASE)
     db.row_factory = sqlite3.Row
     return db
 
+
 def init_db():
+    """Initialize the contacts table if it does not exist."""
     with app.app_context():
         db = get_db()
-        db.execute('''
+        db.execute(
+            '''
             CREATE TABLE IF NOT EXISTS contacts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 phone TEXT NOT NULL
             );
-        ''')
+            '''
+        )
         db.commit()
         db.close()
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -37,7 +44,8 @@ def index():
             if contact_id:
                 db = get_db()
                 db.execute('DELETE FROM contacts WHERE id = ?', (contact_id,))
-                db.commit(); db.close()
+                db.commit()
+                db.close()
                 flash('Contact deleted successfully.', 'success')
             else:
                 flash('Missing contact id.', 'danger')
@@ -49,8 +57,12 @@ def index():
             phone = request.form.get('phone')
             if contact_id and name and phone:
                 db = get_db()
-                db.execute('UPDATE contacts SET name=?, phone=? WHERE id=?', (name, phone, contact_id))
-                db.commit(); db.close()
+                db.execute(
+                    'UPDATE contacts SET name=?, phone=? WHERE id=?',
+                    (name, phone, contact_id)
+                )
+                db.commit()
+                db.close()
                 flash('Contact updated.', 'success')
             else:
                 flash('Missing fields for update.', 'danger')
@@ -61,8 +73,12 @@ def index():
         phone = request.form.get('phone')
         if name and phone:
             db = get_db()
-            db.execute('INSERT INTO contacts (name, phone) VALUES (?, ?)', (name, phone))
-            db.commit(); db.close()
+            db.execute(
+                'INSERT INTO contacts (name, phone) VALUES (?, ?)',
+                (name, phone)
+            )
+            db.commit()
+            db.close()
             flash('Contact added successfully.', 'success')
         else:
             flash('Missing name or phone number.', 'danger')
@@ -96,10 +112,16 @@ def index():
     return render_template(
         'index.html',
         contacts=contacts,
-        page=page, pages=pages, per_page=per_page,
-        has_prev=has_prev, has_next=has_next, total=total,
-        start_page=start_page, end_page=end_page
+        page=page,
+        pages=pages,
+        per_page=per_page,
+        has_prev=has_prev,
+        has_next=has_next,
+        total=total,
+        start_page=start_page,
+        end_page=end_page,
     )
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
