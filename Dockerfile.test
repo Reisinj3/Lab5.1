@@ -1,32 +1,31 @@
-# Use an official Python runtime as a parent image
+# Python image for Lab 5.1 UI/acceptance tests
 FROM python:3.9-slim
 
-# Set the working directory in the container
+# Workdir for test runner
 WORKDIR /usr/src/app
 
-# Copy the current directory contents into the container at /usr/src/app
+# Copy repo contents into the container
 COPY . .
 
-# Install Python dependencies from requirements.txt
-# Ensure it includes selenium
+# Install Python dependencies for browser tests (selenium is in requirements2.txt)
 RUN pip install --no-cache-dir -r requirements2.txt
 
-# Install system dependencies required for Firefox and GeckoDriver
+# System dependencies for Firefox + GeckoDriver
 RUN apt-get update && apt-get install -y \
     wget \
     curl \
     firefox-esr \
     && rm -rf /var/lib/apt/lists/*
 
-# Install GeckoDriver
+# Install GeckoDriver (latest release from GitHub)
 RUN GECKODRIVER_VERSION=$(curl -s https://api.github.com/repos/mozilla/geckodriver/releases/latest | grep tag_name | cut -d '"' -f 4) \
     && wget -q "https://github.com/mozilla/geckodriver/releases/download/${GECKODRIVER_VERSION}/geckodriver-${GECKODRIVER_VERSION}-linux64.tar.gz" -O /tmp/geckodriver.tar.gz \
     && tar -xzf /tmp/geckodriver.tar.gz -C /usr/local/bin \
     && rm /tmp/geckodriver.tar.gz \
     && chmod +x /usr/local/bin/geckodriver
 
-# Set display port to avoid crash
+# Virtual display for headless Firefox
 ENV DISPLAY=:99
 
-# Command to run on container start
+# Run Selenium acceptance test suite on container start
 CMD ["python", "./test_html_elements.py"]
