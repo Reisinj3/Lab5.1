@@ -47,7 +47,7 @@ body {
   background-color: rgba(30, 78, 121, 0.2); 
 }
 
-/* App branding (renamed in spirit from Miami → RiverTech, but kept class names) */
+/* App branding (renamed to RiverTech, but kept class names) */
 .miami-title {
   font-family: 'Oswald', sans-serif; 
   font-weight: 600; 
