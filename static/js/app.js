@@ -1,4 +1,4 @@
-// Client-side filter
+// Client-side filter for RiverTech Contacts table
 const filter = document.getElementById('filter');
 const rows = document.getElementById('rows');
 filter?.addEventListener('input', () => {
@@ -10,7 +10,7 @@ filter?.addEventListener('input', () => {
   }
 });
 
-// Edit modal populate
+// Populate edit modal fields from the selected contact row
 const editModal = document.getElementById('editModal');
 editModal?.addEventListener('show.bs.modal', (ev) => {
   const btn = ev.relatedTarget;
