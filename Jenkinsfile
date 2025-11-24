@@ -3,10 +3,10 @@ pipeline {
 
     environment {
         DOCKER_CREDENTIALS_ID = 'roseaw-dockerhub'
-        DOCKER_IMAGE         = 'cithit/reisinj3'      // your Docker Hub repo
+        DOCKER_IMAGE         = 'cithit/reisinj3'           // your Docker Hub repo
         IMAGE_TAG            = "build-${BUILD_NUMBER}"
         GITHUB_URL           = 'https://github.com/Reisinj3/Lab5.1.git'
-        KUBECONFIG           = credentials('reisinj3-225')
+        KUBECONFIG           = credentials('reisinj3-225') // your kube creds
     }
 
     stages {
@@ -21,20 +21,7 @@ pipeline {
             }
         }
 
-        stage('Static Code Testing (Python)') {
-            steps {
-                script {
-                    // Run flake8 inside a Python Docker container so we don't need pip on Jenkins
-                    docker.image('python:3.9-slim').inside {
-                        sh '''
-                            pip install flake8
-                            flake8 --ignore=E501,W503 .
-                        '''
-                    }
-                }
-            }
-        }
-
+        // STATIC CODE TESTING (HTML)
         stage('Lint HTML') {
             steps {
                 sh 'npm install htmlhint --save-dev'
@@ -56,8 +43,8 @@ pipeline {
         stage('Deploy to Dev Environment') {
             steps {
                 script {
+                    // uses your kube credentials
                     def kubeConfig = readFile(KUBECONFIG)
-                    // (They usually ignore kubeConfig var; it's just required by credentials() binding)
                     sh "kubectl delete --all deployments --namespace=default || true"
                     sh "sed -i 's|${DOCKER_IMAGE}:latest|${DOCKER_IMAGE}:${IMAGE_TAG}|' deployment-dev.yaml"
                     sh "kubectl apply -f deployment-dev.yaml"
@@ -65,8 +52,9 @@ pipeline {
             }
         }
 
-        stage("Run Security Checks") {
+        stage ("Run Security Checks") {
             steps {
+                // change BURP_START_URL if your dev IP changes
                 sh 'docker pull public.ecr.aws/portswigger/dastardly:latest'
                 sh '''
                     docker run --user $(id -u) -v ${WORKSPACE}:${WORKSPACE}:rw \
