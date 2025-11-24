@@ -5,7 +5,7 @@ pipeline {
         DOCKER_CREDENTIALS_ID = 'roseaw-dockerhub'
         DOCKER_IMAGE          = 'cithit/reisinj3'              // your DockerHub image
         IMAGE_TAG             = "build-${BUILD_NUMBER}"
-        GITHUB_URL            = 'https://github.com/Reisinj3/225-lab4-2.git'
+        GITHUB_URL            = 'https://github.com/Reisinj3/Lab5.1.git'
         KUBECONFIG            = credentials('reisinj3-225')    // your kube creds
     }
 
